@@ -12,7 +12,7 @@ Stack: **FastAPI** + **SQLAlchemy (async)** + **JWT** + **OpenCV** + **YOLO**.
 
 *A short walkthrough of the frontend: adding a camera, starting/stopping the stream, and watching the live, YOLO-annotated video on the dashboard.*
 
-> Drop your GIF file next to this README and name it `demo.gif` (or update the path above to match your filename). If you'd like it embedded here directly instead of just referenced, send me the file and I'll add it to the project folder.
+
 
 ---
 
