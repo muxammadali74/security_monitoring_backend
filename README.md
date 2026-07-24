@@ -1,4 +1,4 @@
-# CV Service — Backend
+# Security Monitoring — Backend
 
 Backend for a video-surveillance service: user registration/authentication, adding RTSP cameras, live viewing over WebSocket, and per-frame processing with a YOLO model before the frame is sent to the client.
 
