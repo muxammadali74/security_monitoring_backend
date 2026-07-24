@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+project_env
+*.egg-info/
+.pytest_cache/
+test_gpu.py
+yolov8n.pt
