@@ -1,4 +1,4 @@
-# CV Service — Backend
+# Security Monitoring — Backend
 
 Backend for a video-surveillance service: user registration/authentication, adding RTSP stream, live viewing over WebSocket, and per-frame processing with a YOLO model before the frame is sent to the client.
 
@@ -8,11 +8,19 @@ Stack: **FastAPI** + **SQLAlchemy (async)** + **JWT** + **OpenCV** + **YOLO**.
 
 ## Demo
 
-![Frontend demo](./product.gif)
+![Frontend demo](1.png)
+
+
+![Frontend demo screenshot](2.png)
+
+---
+*Sorry about the quality*
+
+![Frontend demo gif](product.gif)
 
 *A short walkthrough of the frontend: adding a camera, starting/stopping the stream, and watching the live, YOLO-annotated video on the dashboard.*
 
-> Drop your GIF file next to this README and name it `demo.gif` (or update the path above to match your filename). If you'd like it embedded here directly instead of just referenced, send me the file and I'll add it to the project folder.
+
 
 ---
 
@@ -121,6 +129,7 @@ plus DB connection settings (an `AsyncSession` is used, so an async driver is ex
 
 ## 6. Known limitations
 
+<<<<<<< HEAD
 - The camera list and deletion endpoint are scoped to the authenticated user.
 - Start/stop operations, active-stream listing, and WebSocket delivery are restricted to the camera owner.
 - One background `threading.Thread` per camera — with a large number of concurrent stream, consider moving to a process pool (see the separate discussion on scaling to 100+ concurrent viewers).
@@ -141,3 +150,8 @@ plus DB connection settings (an `AsyncSession` is used, so an async driver is ex
   initialized its database tables. Do not run database migrations against a
   production database without first reviewing its backup and migration plan.
 - See `API_DOCUMENTATION.md` for request/response details and all route methods.
+=======
+- No `GET /api/v1/cameras` (list a user's cameras) or `DELETE /api/v1/cameras/{id}` — the frontend has to cache the camera list on its own side.
+- The streaming WebSocket endpoint doesn't check that the camera actually belongs to the authenticated user — any authenticated user can connect to any `camera_id` if they know it. Worth adding a `camera.user_id == current_user.id` check before `accept()`.
+- One background `threading.Thread` per camera — with a large number of concurrent cameras, consider moving to a process pool (see the separate discussion on scaling to 100+ concurrent viewers).
+>>>>>>> a2a29d45fbe27ec23e1643a567a6ca611e36adac
