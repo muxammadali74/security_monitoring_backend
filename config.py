@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 60 * 24
 
     ADMIN_REGISTRATION_SECRET: str = "super_secret_key_123"
+    TELEGRAM_BOT_TOKEN: str | None = None
 
     @property
     def DATABASE_URL(self) -> str:

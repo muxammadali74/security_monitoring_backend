@@ -5,3 +5,5 @@ project_env
 .pytest_cache/
 test_gpu.py
 yolov8n.pt
+.env
+.env.example

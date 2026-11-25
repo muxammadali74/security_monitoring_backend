@@ -1,6 +1,6 @@
 # CV Service — Backend
 
-Backend for a video-surveillance service: user registration/authentication, adding RTSP cameras, live viewing over WebSocket, and per-frame processing with a YOLO model before the frame is sent to the client.
+Backend for a video-surveillance service: user registration/authentication, adding RTSP stream, live viewing over WebSocket, and per-frame processing with a YOLO model before the frame is sent to the client.
 
 Stack: **FastAPI** + **SQLAlchemy (async)** + **JWT** + **OpenCV** + **YOLO**.
 
@@ -24,10 +24,10 @@ app/
 │   ├── registration.py   # regular user + admin registration
 │   ├── auth.py            # login, JWT issuing
 │   ├── addNewCam.py       # add camera + one-shot frame preview
-│   └── cameras.py         # start/stop stream, list active streams, live video over WS
+│   └── stream.py         # start/stop stream, list active streams, live video over WS
 ├── models/            # SQLAlchemy models (DB tables)
 │   ├── user_model.py      # UserTable
-│   └── cameras_model.py   # UserCamerasTable
+│   └── stream_model.py   # UserstreamTable
 ├── schemas/           # Pydantic request/response schemas
 ├── dependencies/
 │   └── auth.py            # get_current_user — decodes the JWT from the Authorization header
@@ -61,18 +61,18 @@ Token payload: `{"sub": user.id, "email", "name", "is_admin", "exp"}`.
 
 ---
 
-## 3. Cameras
+## 3. stream
 
 | Action | Endpoint |
 |---|---|
-| Add a camera | `POST /api/v1/newcam/` — body `{name, url}`, requires auth, returns `{id, user_id, name, url}` |
-| Preview a frame | `POST /api/v1/newcam/preview` — body `{rtsp_url}`, connects to the RTSP source once (`camera_helper.capture_single_frame`, run in a threadpool so it doesn't block the event loop) and returns a single JPEG frame as base64 — **before** the camera is even saved to the DB |
-| Start streaming | `POST /api/v1/cameras/{camera_id}/start` |
-| Stop streaming | `POST /api/v1/cameras/{camera_id}/stop` |
-| List active streams | `GET /api/v1/cameras/active-streams` → `{active_camera_ids, total_active}` |
-| Live video | `WS /api/v1/cameras/{camera_id}/ws?token=<access_token>` |
-
-There is currently **no** endpoint to list a user's cameras or to delete one — once a camera is created via `/newcam/`, it stays in the DB indefinitely (unless you've since added this — in that case, this doc is out of date on that point).
+| List the signed-in user's cameras | `GET /api/v1/newstream/` — returns only cameras owned by the authenticated user |
+| Add a camera | `POST /api/v1/newstream/` — body `{name, url}`, requires auth, returns `{id, user_id, name, url}` |
+| Delete a camera | `DELETE /api/v1/newstream/{camera_id}` — authenticated owner only; stops an active stream and removes linked zones |
+| Preview a frame | `POST /api/v1/newstream/preview` — body `{rtsp_url}`, connects to the RTSP source once (`camera_helper.capture_single_frame`, run in a threadpool so it doesn't block the event loop) and returns a single JPEG frame as base64 — **before** the camera is even saved to the DB |
+| Start streaming | `POST /api/v1/stream/{camera_id}/start` — authenticated owner only |
+| Stop streaming | `POST /api/v1/stream/{camera_id}/stop` — authenticated owner only |
+| List active streams | `GET /api/v1/stream/active-streams` — authenticated user's IDs only; returns `{active_camera_ids, total_active}` |
+| Live video | `WS /api/v1/stream/{camera_id}/ws?token=<access_token>` — validates token and camera ownership |
 
 ---
 
@@ -91,10 +91,10 @@ Pipeline inside `_camera_worker` (one instance per camera, in its own thread):
 
 `start_stream(camera_id, rtsp_url)` / `stop_stream(camera_id)` simply manage that thread's lifecycle (a `threading.Event` for stopping). `get_active_streams()` / `is_active()` read the current state without blocking other operations.
 
-### WebSocket delivery (`cameras.py`)
+### WebSocket delivery (`stream.py`)
 
 ```
-WS /api/v1/cameras/{camera_id}/ws?token=<access_token>
+WS /api/v1/stream/{camera_id}/ws?token=<access_token>
 ```
 
 - The token is passed **as a query parameter**, not a header — the native browser `WebSocket` API can't send an `Authorization` header. It's validated with the same `decode_access_token` function used for HTTP requests.
@@ -121,6 +121,23 @@ plus DB connection settings (an `AsyncSession` is used, so an async driver is ex
 
 ## 6. Known limitations
 
-- No `GET /api/v1/cameras` (list a user's cameras) or `DELETE /api/v1/cameras/{id}` — the frontend has to cache the camera list on its own side.
-- The streaming WebSocket endpoint doesn't check that the camera actually belongs to the authenticated user — any authenticated user can connect to any `camera_id` if they know it. Worth adding a `camera.user_id == current_user.id` check before `accept()`.
-- One background `threading.Thread` per camera — with a large number of concurrent cameras, consider moving to a process pool (see the separate discussion on scaling to 100+ concurrent viewers).
+- The camera list and deletion endpoint are scoped to the authenticated user.
+- Start/stop operations, active-stream listing, and WebSocket delivery are restricted to the camera owner.
+- One background `threading.Thread` per camera — with a large number of concurrent stream, consider moving to a process pool (see the separate discussion on scaling to 100+ concurrent viewers).
+
+## 7. Security zones, events, and Telegram alerts
+
+- Zones are managed through `GET/POST /api/v1/stream/{camera_id}/zones` and
+  `PATCH/DELETE /api/v1/stream/zones/{zone_id}`. Polygon coordinates are
+  normalized to `0..1`; supported detector classes are person (`0`), car (`2`),
+  and truck (`7`).
+- A zone-entry event is persisted with a JPEG snapshot. Event history is
+  available at `GET /api/v1/events/`; snapshots are owner-protected at
+  `GET /api/v1/events/{event_id}/snapshot`.
+- Telegram linking and notification settings are available under
+  `/api/v1/telegram/`. Set `TELEGRAM_BOT_TOKEN` in the backend `.env`, restart
+  the service, then create a link from the authenticated frontend.
+- Apply the database revision with `alembic upgrade head` after the service has
+  initialized its database tables. Do not run database migrations against a
+  production database without first reviewing its backup and migration plan.
+- See `API_DOCUMENTATION.md` for request/response details and all route methods.

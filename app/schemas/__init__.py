@@ -11,5 +11,8 @@ __all__ = [
     "UserAuthSchema",
     "UserPublicSchema",
     "TokenSchema",
-    "NewCamera"
+    "NewCamera",
+    "ZoneResponseSchema",
+    "ZoneCreateSchema",
+    "PointSchema"
 ]

@@ -12,16 +12,24 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+
 from config import settings
 from app.routers import router
 from app.database import check_and_create_database, init_tables
 from fastapi.middleware.cors import CORSMiddleware
+from app.services.alert_processor import alert_processor
+from app.services.stream import stream_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await check_and_create_database()
     await init_tables()
-    yield
+    await alert_processor.start()
+    try:
+        yield
+    finally:
+        stream_manager.stop_all()
+        await alert_processor.stop()
 
 
 app = FastAPI(
